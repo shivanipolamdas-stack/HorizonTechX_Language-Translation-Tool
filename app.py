@@ -1,39 +1,33 @@
 import streamlit as st
-from deep_translator import MyMemoryTranslator
+import requests
 
-# Page settings
 st.set_page_config(
     page_title="Language Translation Tool",
-    page_icon="🌐",
-    layout="centered"
+    page_icon="🌐"
 )
 
 st.title("🌐 Language Translation Tool")
-st.write("Translate text from one language to another using an online translation service.")
-
-# Supported languages
-languages = {
-    "English": "en-GB",
-    "Telugu": "te-IN",
-    "Hindi": "hi-IN",
-    "Tamil": "ta-LK",
-    "Kannada": "kn-IN",
-    "Malayalam": "ml-IN",
-    "Spanish": "es-ES",
-    "French": "fr-FR",
-    "German": "de-DE",
-    "Japanese": "ja-JP",
-    "Korean": "ko-KR",
-    "Chinese": "zh-CN"
-}
-
-# Text input
-text = st.text_area(
-    "Enter text to translate:",
-    placeholder="Type your text here..."
+st.write(
+    "Translate text from one language to another using an online translation service."
 )
 
-# Language selection
+languages = {
+    "English": "en",
+    "Telugu": "te",
+    "Hindi": "hi",
+    "Tamil": "ta",
+    "Kannada": "kn",
+    "Malayalam": "ml",
+    "French": "fr",
+    "German": "de",
+    "Spanish": "es"
+}
+
+text = st.text_area(
+    "Enter text to translate:",
+    height=150
+)
+
 col1, col2 = st.columns(2)
 
 with col1:
@@ -49,32 +43,73 @@ with col2:
         index=1
     )
 
-# Translate button
+
+def translate_text(text, source_code, target_code):
+
+    url = "https://api.mymemory.translated.net/get"
+
+    params = {
+        "q": text,
+        "langpair": f"{source_code}|{target_code}"
+    }
+
+    response = requests.get(
+        url,
+        params=params,
+        timeout=20
+    )
+
+    response.raise_for_status()
+
+    data = response.json()
+
+    if data.get("responseStatus") != 200:
+        raise Exception(
+            data.get("responseDetails", "Translation failed")
+        )
+
+    return data["responseData"]["translatedText"]
+
+
 if st.button("🔄 Translate", use_container_width=True):
 
     if not text.strip():
-        st.warning("Please enter some text to translate.")
+
+        st.warning("Please enter some text.")
 
     elif source_language == target_language:
-        st.info("Please select two different languages.")
+
+        st.info("Source and target languages are the same.")
+        st.write(text)
 
     else:
+
         try:
-            translator = MyMemoryTranslator(
-                source=languages[source_language],
-                target=languages[target_language]
+            source_code = languages[source_language]
+            target_code = languages[target_language]
+
+            translated_text = translate_text(
+                text,
+                source_code,
+                target_code
             )
 
-            translated_text = translator.translate(text)
+            st.success("✅ Translation completed!")
 
             st.subheader("Translated Text")
-            st.success(translated_text)
 
-            st.code(translated_text)
+            st.text_area(
+                "Result:",
+                translated_text,
+                height=150
+            )
 
-            st.info("You can copy the translated text from the box above.")
-        except Exception as error:
-            st.error("Translation failed. Please try again.")
-            st.caption(f"Error: {error}")
+        except requests.exceptions.RequestException as e:
 
-            
+            st.error("❌ Unable to connect to the translation API.")
+            st.write(f"Error: {e}")
+
+        except Exception as e:
+
+            st.error("❌ Translation failed.")
+            st.write(f"Error: {e}")
